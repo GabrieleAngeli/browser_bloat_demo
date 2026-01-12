@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Browser Bloat Demo — Raw vs Backend Pre-Aggregation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>Browser Bloat Demo</h1>
+    <p class="sub">
+      Compare <b>Raw → client-side aggregation</b> (heavy) vs <b>Server-side pre-aggregation</b> (light).
+      Open DevTools (Performance/Memory) and run the benchmark series.
+    </p>
+
+    <section class="panel">
+      <div class="row">
+        <label>
+          Points (raw):
+          <input id="points" type="number" value="200000" min="1000" max="1000000" step="1000">
+        </label>
+        <label>
+          Buckets (agg):
+          <input id="buckets" type="number" value="1200" min="50" max="10000" step="50">
+        </label>
+        <label>
+          Seed:
+          <input id="seed" type="number" value="1" min="1" max="9999">
+        </label>
+      </div>
+
+      <div class="row">
+        <button id="runClient">Run (Browser heavy)</button>
+        <button id="runServer">Run (Backend light)</button>
+        <button id="runSeries">Run series benchmark (serial)</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <details class="details" open>
+        <summary>Series settings</summary>
+        <div class="row">
+          <label>
+            Series start points:
+            <input id="seriesStart" type="number" value="50000" min="1000" max="1000000" step="1000">
+          </label>
+          <label>
+            Steps:
+            <input id="seriesSteps" type="number" value="5" min="1" max="10" step="1">
+          </label>
+          <label>
+            Multiplier:
+            <input id="seriesMult" type="number" value="2" min="1" max="3" step="0.1">
+          </label>
+          <label>
+            Cooldown ms:
+            <input id="seriesCooldown" type="number" value="150" min="0" max="2000" step="50">
+          </label>
+        </div>
+        <p class="hint">
+          Example: start=50k, steps=5, mult=2 → 50k,100k,200k,400k,800k (clamped at 1M).
+          Cooldown helps reduce GC interference between steps.
+        </p>
+      </details>
+
+      <div id="out" class="out"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="h2">Preview (last step)</h2>
+      <canvas id="chart" width="1100" height="360"></canvas>
+      <p class="hint">This preview shows buckets (min/max band + avg). Benchmark charts are below.</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="h2">Benchmark charts</h2>
+
+      <div class="grid2">
+        <div>
+          <h3 class="h3">Total time (ms)</h3>
+          <canvas id="chartTime" width="540" height="260"></canvas>
+          <p class="hint">
+            <b>How to read:</b> Each point is one benchmark step (increasing input size).
+            Orange (Browser heavy) is end-to-end time perceived by the user.
+            Green (Backend light) is end-to-end time when the server returns pre-aggregated data.
+            The shaded area highlights the gap between the two.
+            Bigger gap = more time saved by moving work to the backend.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="h3">CPU busy estimate (%)</h3>
+          <canvas id="chartCpu" width="540" height="260"></canvas>
+          <p class="hint">
+            <b>How to read:</b> This is a UX-oriented estimate:
+            <code>(parseMs + computeMs) / totalMs</code>.
+            Higher % means the main thread is “busy” longer, increasing jank and UI freezes.
+            Browser-heavy typically spikes because parsing a large JSON payload is expensive.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="h3">JS heap delta (MB)</h3>
+          <canvas id="chartMem" width="540" height="260"></canvas>
+          <p class="hint">
+            <b>How to read:</b> This chart shows <b>heap delta</b> during each run:
+            <code>peakHeap - heapBefore</code>.
+            It is more stable than raw “heap used” because it reduces garbage-collector noise.
+            Bigger orange values mean the browser had to allocate/retain more memory for that step.
+            If you see “n/a”, your browser doesn’t expose heap metrics.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="h3">Stacked breakdown (ms)</h3>
+          <canvas id="chartBreak" width="540" height="260"></canvas>
+          <p class="hint">
+            <b>How to read:</b> Two stacked bars per step:
+            <b>left = Browser-heavy</b>, <b>right = Backend-light</b>.
+            Each bar is split into phases. Browser-heavy stacks <b>fetch</b> (download), <b>parse</b> (JSON → objects),
+            <b>compute</b> (client aggregation). Backend-light stacks <b>fetch</b> and <b>parse</b>.
+            When the orange <b>parse</b> segment dominates, “raw JSON + browser parsing” is your real bottleneck.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
