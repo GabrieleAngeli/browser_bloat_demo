@@ -47,10 +47,15 @@ const THEME = {
   }
 };
 
-$("runClient").addEventListener("click", () => runSingle("browser"));
-$("runServer").addEventListener("click", () => runSingle("backend"));
+// $("runClient").addEventListener("click", () => runSingle("browser"));
+// $("runServer").addEventListener("click", () => runSingle("backend"));
 $("runSeries").addEventListener("click", runSeriesBenchmark);
 $("clear").addEventListener("click", clearAll);
+document.addEventListener("DOMContentLoaded", () => {
+  runSeriesBenchmark()
+});
+
+$().onload = () => {runSeriesBenchmark();}
 
 function log(line) {
   outEl.textContent += line + "\n";
